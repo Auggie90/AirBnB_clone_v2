@@ -2,9 +2,6 @@
 """ Console Module """
 import cmd
 import sys
-import models
-import json
-import shlex
 from models.base_model import BaseModel
 from models.__init__ import storage
 from models.user import User
@@ -117,36 +114,22 @@ class HBNBCommand(cmd.Cmd):
 
     def do_create(self, args):
         """ Create an object of any class"""
-        
-        input = args.split()
-        if not args:
+        try:
+            if not args:
+                raise SyntaxError()
+            arg_list = args.split(" ")
+            kw = {}
+            for arg in arg_list[1:]:
+                arg_splited = arg.split("=")
+                arg_splited[1] = eval(arg_splited[1])
+                if type(arg_splited[1]) is str:
+                    arg_splited[1] = arg_splited[1].replace("_", " ").replace('"', '\\"')
+                kw[arg_splited[0]] = arg_splited[1]
+        except SyntaxError:
             print("** class name missing **")
-            return
-        elif input[0] not in HBNBCommand.classes:
+        except NameError:
             print("** class doesn't exist **")
-            return
-        
-        new_instance = HBNBCommand.classes[input[0]]()
-        for elem in input[1:]:
-            elem = elem.split("=")
-            if (len(elem) == 2):
-                elem[1] = elem[1].replace("_", " ")
-
-                if elem[1][0] != '"':
-                    try:
-                        elem[1] = int(elem[1])
-                    except:
-                        try:
-                            elem[1] = float(elem[1])
-                        except:
-                            pass
-                else:
-                    elem[1] = elem[1].replace('"', "")
-                elem[0] = elem[0].replace('"', "")
-                try:
-                    setattr(new_instance, elem[0], elem[1])
-                except:
-                    pass
+        new_instance = HBNBCommand.classes[arg_list[0]](**kw)
         new_instance.save()
         print(new_instance.id)
 
@@ -157,11 +140,9 @@ class HBNBCommand(cmd.Cmd):
 
     def do_show(self, args):
         """ Method to show an individual object """
-        
         new = args.partition(" ")
         c_name = new[0]
         c_id = new[2]
-        obj_dict = storage.all(new[0])
 
         # guard against trailing args
         if c_id and ' ' in c_id:
@@ -181,7 +162,7 @@ class HBNBCommand(cmd.Cmd):
 
         key = c_name + "." + c_id
         try:
-            print(obj_dict[key])
+            print(storage._FileStorage__objects[key])
         except KeyError:
             print("** no instance found **")
 
@@ -192,7 +173,6 @@ class HBNBCommand(cmd.Cmd):
 
     def do_destroy(self, args):
         """ Destroys a specified object """
-        
         new = args.partition(" ")
         c_name = new[0]
         c_id = new[2]
@@ -226,21 +206,6 @@ class HBNBCommand(cmd.Cmd):
 
     def do_all(self, args):
         """ Shows all objects, or all objects of a class"""
-        # args = args.split(" ")
-        # obj_list = []
-        # objects = storage.all(args[0])
-        # try:
-        #     if args[0] != "":
-        #         models.classes[args[0]]
-        # except (KeyError, NameError):
-        #     print("** class doesn't exist **")
-        #     return
-        # try:
-        #     for key, val in objects.items():
-        #         obj_list.append(str(val))
-        # except:
-        #     pass
-        # print(obj_list)
         print_list = []
 
         if args:
@@ -253,7 +218,6 @@ class HBNBCommand(cmd.Cmd):
         else:
             for k, v in storage.all().items():
                 print_list.append(str(v))
-
         print(print_list)
 
     def help_all(self):
@@ -263,7 +227,6 @@ class HBNBCommand(cmd.Cmd):
 
     def do_count(self, args):
         """Count current number of class instances"""
-        
         count = 0
         for k, v in storage._FileStorage__objects.items():
             if args == k.split('.')[0]:
@@ -276,7 +239,6 @@ class HBNBCommand(cmd.Cmd):
 
     def do_update(self, args):
         """ Updates a certain object with new info """
-        
         c_name = c_id = att_name = att_val = kwargs = ''
 
         # isolate cls from id/args, ex: (<cls>, delim, <id/args>)
@@ -362,23 +324,6 @@ class HBNBCommand(cmd.Cmd):
         """ Help information for the update class """
         print("Updates an object with new information")
         print("Usage: update <className> <id> <attName> <attVal>\n")
-
-    def default(self, args):
-        '''
-            Catches all the function names that are not expicitly defined.
-        '''
-        functions = {"all": self.do_all, "update": self.do_update,
-                     "show": self.do_show, "count": self.do_count,
-                     "destroy": self.do_destroy, "update": self.do_update}
-        args = (args.replace("(", ".").replace(")", ".")
-                .replace('"', "").replace(",", "").split("."))
-
-        try:
-            cmd_arg = args[0] + " " + args[2]
-            func = functions[args[1]]
-            func(cmd_arg)
-        except:
-            print("*** Unknown syntax:", args[0])
 
 if __name__ == "__main__":
     HBNBCommand().cmdloop()
